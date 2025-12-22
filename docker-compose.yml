@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  blockchain:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: vault-blockchain
+    ports:
+      - "8545:8545"
+    volumes:
+      - ./deployments:/app/deployments
+      - ./contracts:/app/contracts
+      - ./scripts:/app/scripts
+    networks:
+      - vault-network
+    environment:
+      - NODE_ENV=development
+    stdin_open: true
+    tty: true
+
+networks:
+  vault-network:
+    driver: bridge

@@ -1,0 +1,219 @@
+Description
+Objective
+Many decentralized systems separate responsibility for asset custody and permission validation across multiple on-chain components. This task focuses on designing and implementing a secure vault system where fund movement is permitted only after an explicit authorization flow is validated on-chain.
+
+The system is composed of two smart contracts: one responsible for holding and transferring funds, and another responsible for validating withdrawal permissions that originate from off-chain coordination. This structure reflects real-world decentralized architectures where trust boundaries are intentionally split to reduce risk and improve clarity.
+
+From an engineering perspective, the challenge lies in ensuring that permissions are enforced exactly once, that state transitions remain correct under unexpected execution paths, and that the system behaves deterministically even when multiple actions are composed together. Candidates must reason carefully about how authorization, state updates, and value transfers interact.
+
+By completing this task, candidates will demonstrate their ability to design secure multi-contract systems, reason about authorization scope, and preserve critical invariants in adversarial execution environments commonly encountered in production Web3 protocols.
+
+Core Requirements
+System Architecture
+The system must consist of two on-chain contracts:
+
+A vault contract that holds and transfers funds
+An authorization manager contract that validates withdrawal permissions
+The vault contract must not perform cryptographic signature verification itself.
+
+The vault must rely exclusively on the authorization manager for permission validation.
+
+Vault Behavior
+Any address must be able to deposit native blockchain currency into the vault.
+
+Withdrawals must only succeed when:
+
+A valid authorization is presented
+The authorization manager confirms the authorization is acceptable
+Each successful withdrawal must update internal accounting exactly once.
+
+Vault balance must never become negative.
+
+Authorization Behavior
+Withdrawal permissions must originate from off-chain generated authorizations.
+
+Each authorization must be bound to:
+
+A specific vault instance
+A specific blockchain network
+A specific recipient
+A specific withdrawal amount
+Each authorization must be valid for exactly one successful state transition.
+
+System Guarantees
+The system must behave correctly even when calls occur in unexpected order or frequency.
+Cross-contract interactions must not result in duplicated effects.
+Initialization logic for both contracts must not be executable more than once.
+Unauthorized callers must not influence privileged state transitions.
+Observability
+Deposits, authorization consumption, and withdrawals must emit events.
+Failed withdrawal attempts must revert deterministically.
+Implementation Guidelines
+Contract Responsibilities
+The vault contract should:
+
+Hold funds
+Request authorization validation
+Execute withdrawals only after confirmation
+The authorization manager should:
+
+Validate permissions
+Track authorization usage
+Expose a verification interface callable by the vault
+Authorization Design
+Use deterministic message construction for authorization data.
+Bind permissions tightly to contextual parameters.
+Include an explicit uniqueness mechanism to prevent duplicate effects.
+State Management
+Perform all critical state updates before transferring value.
+Ensure consistency across contract boundaries.
+Do not rely on assumptions about call ordering or caller behavior.
+Outcomes
+Deposits are accepted and tracked correctly.
+Withdrawals succeed only when properly authorized.
+Permissions cannot be reused for multiple withdrawals.
+State transitions occur exactly once per authorization.
+System invariants hold under composed or nested execution flows.
+Deployment and interaction are fully reproducible locally.
+Contract behavior is observable via emitted events.
+Implementation Details
+Step 1: Repository Structure
+Your repository must contain all required components in a clear and discoverable structure. A suggested layout is shown below (you may adapt it, but all components must exist):
+
+/
+├─ contracts/
+│  ├─ SecureVault.sol
+│  └─ AuthorizationManager.sol
+├─ scripts/
+│  └─ deploy.js
+├─ tests/
+│  └─ system.spec.js        # optional but recommended
+├─ docker/
+│  ├─ Dockerfile
+│  └─ entrypoint.sh
+├─ docker-compose.yml
+└─ README.md
+Step 2: Authorization Manager Contract
+// Responsible for validating withdrawal permissions
+// Tracks whether an authorization has already been consumed
+contract AuthorizationManager {
+    // Stores authorization identifiers
+
+    // Confirms whether a withdrawal is permitted
+    // Parameters must encode:
+    // - vault address
+    // - recipient
+    // - amount
+    // - unique authorization identifier
+    // - signature data
+    function verifyAuthorization(...) external returns (bool) {
+        // Validate authorization authenticity
+        // Ensure authorization has not been used before
+        // Mark authorization as consumed
+        // Return verification result
+    }
+}
+Step 3: Vault Contract
+// Holds pooled funds and executes withdrawals
+contract SecureVault {
+    // Stores reference to AuthorizationManager
+
+    receive() external payable {
+        // Accept deposits
+        // Emit deposit event
+    }
+
+    function withdraw(
+        // recipient
+        // amount
+        // authorization reference
+    ) external {
+        // Request authorization validation
+        // Update internal accounting
+        // Transfer funds
+        // Emit withdrawal event
+    }
+}
+Step 4: Dockerfile Expectations
+Your Dockerfile must:
+
+Install project dependencies
+Compile smart contracts
+Execute deployment logic at container startup
+Example structure-only Dockerfile skeleton:
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm install
+
+COPY . .
+
+CMD ["sh", "./docker/entrypoint.sh"]
+Step 5: docker-compose Responsibilities
+Running docker-compose up must:
+
+Start a local blockchain node
+Deploy the authorization manager contract
+Deploy the vault contract with the authorization manager address
+Expose an RPC endpoint accessible from the host
+Output deployed contract addresses to logs or a file
+Responsibility outline (syntax not mandated):
+
+services:
+  blockchain:
+    # Local EVM node
+    # Exposes RPC port
+
+  deployer:
+    # Compiles contracts
+    # Deploys AuthorizationManager
+    # Deploys SecureVault
+    # Logs deployment information
+Step 6: Deployment Script Expectations
+Your deployment script must:
+
+Connect to the local blockchain
+
+Deploy contracts in the correct order
+
+Output:
+
+Contract addresses
+Network identifier
+This information must be easy to locate by an evaluator.
+
+Step 7: Local Validation
+Provide at least one of the following:
+
+Automated tests demonstrating successful and failed withdrawals
+A documented manual flow in README explaining how authorization is generated and consumed
+Common Mistakes To Avoid
+Allowing the same authorization to produce multiple effects
+Transferring value before updating internal state
+Using ambiguous or loosely scoped authorization data
+Failing to bind permissions to contract or network context
+Leaving initialization logic unprotected
+Assuming calls occur only once or in a fixed order
+Coupling vault logic tightly to authorization logic
+
+
+Submission Instructions:
+
+Submit a GitHub repository URL containing your complete implementation.
+
+Your repository must include a Dockerfile and docker-compose.yml such that running docker-compose up initializes a local blockchain and deploys the vault contract automatically.
+
+Your README.md must clearly explain how the system works, how authorization is designed, and how replay protection is enforced. Include any assumptions made and known limitations.
+
+Optional artifacts such as architecture diagrams, interaction flow diagrams, or brief security analyses are encouraged and may strengthen your submission.
+
+Evaluation Overview
+Your submission will be evaluated by executing your system in a controlled environment and observing its behavior under both normal and adversarial conditions. We will deploy your contracts locally, interact with them programmatically, and verify that security properties and invariants hold.
+
+We will review your codebase for clarity, structure, and correctness, and assess your design reasoning based on documentation and questionnaire responses. Emphasis is placed on security awareness, correctness under attack scenarios, and clear communication of design decisions.
+
+
+
